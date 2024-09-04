@@ -60,7 +60,7 @@ The second hint comes from an early idea in Polysemy’s development. Below is a
 >
 > ...
 
-From [Freer, yet Too Costly Higher-order Effects - Freeing the Higher Orders - REASONABLY POLYMORPHIC](https://reasonablypolymorphic.com/#freeing-the-higher-orders).
+From [Freer, yet Too Costly Higher-order Effects - Freeing the Higher Orders - REASONABLY POLYMORPHIC](https://reasonablypolymorphic.com/blog/freer-yet-too-costly/index.html#freeing-the-higher-orders).
 
 Afterward, the blog discusses attempts to compose a structure called `Yo`, a `Coyoneda`-like structure for weaving in Polysemy. The current internal implementation of Polysemy is likely based on this or something very close to it.
 
