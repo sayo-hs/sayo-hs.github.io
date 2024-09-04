@@ -21,7 +21,7 @@
 title: Sayo-hs Blog
 email: ymdfield@outlook.jp
 description: >- # this means to ignore newlines until "baseurl:"
-  <a href="https://github.com/sayo-hs/heftia">Higher-order effects done right for Haskell.</a>
+  Higher-order effects done right for Haskell.
 baseurl: "" # the subpath of your site, e.g. /blog
 url: "https://sayo-hs.github.io" # the base hostname & protocol for your site, e.g. http://example.com
 twitter_username: ymdfield
