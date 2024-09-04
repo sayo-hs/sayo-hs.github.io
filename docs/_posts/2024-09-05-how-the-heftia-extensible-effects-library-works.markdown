@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Higher-Order Effects Done Right:<br/>How the Heftia Extensible Effects Library Works"
+title:  "Higher-Order Effects Done Right: How the Heftia Extensible Effects Library Works"
 date:   2024-09-05 03:33:30 +0900
 categories: jekyll update
 ---
@@ -14,7 +14,7 @@ This article is a semi-machine translation of the original Japanese article:
 
 This article is intended for the Haskell Extensible Effects (EE) community, with a particular focus on "higher-order effects" and "delimited continuations." It explains the workings of the EE library "Heftia," which I implemented. I hope this article reaches the EE community and generates some buzz.
 
-https://github.com/sayo-hs/heftia
+[https://github.com/sayo-hs/heftia](https://github.com/sayo-hs/heftia)
 
 # Background
 
@@ -26,7 +26,7 @@ First, [fused-effects](https://hackage.haskell.org/package/fused-effects) fuses 
 
 [^1]: https://github.com/polysemy-research/polysemy/issues/246
 
-This is where [eff](https://github.com/lexi-lambda/eff) comes in. By adding primitive operators for managing delimited continuations at the IO Monad level to GHC, it aims to provide a *continuation-based semantics* for higher-order effects. If this starts working, it may become a de facto superior alternative to [`effectful`](https://hackage.haskell.org/package/effectful), which is currently popular due to its simplicity on the IO Monad base. However, it seems that this does not work on the current GHC.
+This is where [eff](https://github.com/lexi-lambda/eff) comes in. By adding primitive operators for managing delimited continuations at the IO Monad level to GHC, it aims to provide a *continuation-based semantics* for higher-order effects. If this starts working, it may become a de facto superior alternative to [effectful](https://hackage.haskell.org/package/effectful), which is currently popular due to its simplicity on the IO Monad base. However, it seems that this does not work on the current GHC.
 
 # The Problem with Higher-Order Effects
 

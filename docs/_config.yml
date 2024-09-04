@@ -29,7 +29,7 @@ github_username:  ymdfield
 domain: sayo-hs.github.io
 
 # Build settings
-theme: jekyll-theme-simplex
+theme: minima
 plugins:
   - jekyll-feed
 
