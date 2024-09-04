@@ -28,6 +28,8 @@ First, [fused-effects](https://hackage.haskell.org/package/fused-effects) fuses 
 
 This is where [eff](https://github.com/lexi-lambda/eff) comes in. By adding primitive operators for managing delimited continuations at the IO Monad level to GHC, it aims to provide a *continuation-based semantics* for higher-order effects. If this starts working, it may become a de facto superior alternative to [effectful](https://hackage.haskell.org/package/effectful), which is currently popular due to its simplicity on the IO Monad base. However, it seems that this does not work on the current GHC.
 
+There's also [in-other-words](https://github.com/KingoftheHomeless/in-other-words). Like *fused-effects*, it's probably not an EE. The issues I mentioned with *fused-effects* have been resolved. The interpreter code is concise, and it seems to handle *NonDet* as well. However, the behavior involving higher-order effects can become transactional or not depending on the order of interpretation, which is a characteristic carried over from *mtl*. If you expect higher-order effects to emulate the semantics of *Algebraic Effects and Handlers*, this might be a quite tricky to deal with. It would likely meet the demand for a modernized version of *mtl*.
+
 # The Problem with Higher-Order Effects
 
 Why is this such a complicated issue? Is there a simple, elegant solution that makes everything work?
