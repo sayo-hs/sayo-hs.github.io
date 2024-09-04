@@ -18,7 +18,7 @@ This article is intended for the Haskell Extensible Effects (EE) community, with
 
 # Background
 
-As is well-known, the handling of higher-order effects in existing EE libraries is far from perfect.
+As is well-known, the handling of higher-order effects in existing EE libraries is less than perfect.
 
 First, [fused-effects](https://hackage.haskell.org/package/fused-effects) fuses effects, as its name suggests. Strictly speaking, it’s not clear if this can even be called EE (at the very least, it’s not Freer-based, so I don’t think it’s Freer Effects). It probably can’t. The fusion of effects means that there is a fundamental performance advantage, but the trade-off is that dynamic transformation of effects (so-called `interpose` operations) becomes difficult. Also, managing interpreters is a hassle (there’s a lot of `<$ ctx`, and dealing with `thread` feels quite challenging).
 
