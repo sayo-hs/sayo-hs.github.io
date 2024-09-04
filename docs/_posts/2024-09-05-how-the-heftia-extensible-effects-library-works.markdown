@@ -5,7 +5,7 @@ date:   2024-09-05 03:33:30 +0900
 categories: jekyll update
 ---
 
-This article is a semi-machine translation of the original Japanese article:
+This article is a proofread version of a machine translation of the original Japanese article:
 <a href="https://zenn.dev/lanexpr/articles/dd8110bbdd707c">Higher-Order Effects Done Right: Heftia Extensible Effectsライブラリの仕組み</a>
 
 ---
