@@ -207,6 +207,8 @@ Let’s revisit the definition of the higher-order version of Freer:
 >         => (forall x. f (Freer f) x -> m x)
 >         -> m a
 >   }
+> ```
+
 Let’s tweak this a bit. To avoid confusion with the traditional first-order `Freer`, let’s call this higher-order version `FreerH`. Rename `f` to `h`, and rewrite `FreerH` using the first-order `Freer`, which we can encode as `Free (Coyoneda f)`[^5].
 
 ```haskell
