@@ -69,7 +69,7 @@ Now, what if we don’t adopt the weaving style and instead use this as the inte
 
 Here lies the turning point.
 
-**Yes, this higher-order version of Freer, defined as `Freer f a`, was indeed *correct*!**
+**Yes, this higher-order version of Freer, defined as `Freer f a`, was indeed *right*!**
 
 So, how should we write `runError`?
 
