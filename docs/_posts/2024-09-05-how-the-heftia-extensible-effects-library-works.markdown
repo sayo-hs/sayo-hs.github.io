@@ -103,7 +103,7 @@ Rather than interpreting everything in one go like `runError`, we split the inte
 
 ```haskell
 runThrow :: Eff '[] (Throw e ': ef) a -> Eff '[] ef (Either e a)
-runCatch :: Eff (Catch e ': eh) ef a -> Eff eh ef a
+runCatch :: Throw e <| ef => Eff (Catch e ': eh) ef a -> Eff eh ef a
 ```
 
 Notice that in `runThrow`, the list of higher-order effects is empty. In this system, **if you want to interpret delimited continuations, the higher-order effects must be fully interpreted and removed from the list**. In fact, this approach makes **both `runThrow` and `runCatch` possible**[^2], which allows handling higher-order effects.
