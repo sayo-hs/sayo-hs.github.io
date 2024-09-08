@@ -75,10 +75,10 @@ So, how should we write `runError`?
 
 ## Separating First-order and Higher-order Effects
 
-Here, I introduce a new idea:
-**Separate first-order effects from higher-order effects as distinct types.**
+Here, let’s introduce a novel idea:
+**Separating first-order effects and higher-order effects into distinct types.**
 
-For example, the `Error` effect can be decomposed and defined into the following two data types:
+For example, the `Error` effect can be split and defined into the following two data types:
 
 ```haskell
 data Throw e (a :: Type) where
@@ -90,37 +90,37 @@ data Catch e f (a :: Type) where
     Catch :: f a -> (e -> f a) -> Catch e f a
 ```
 
-Then, on the monad that represents an effectful program, we separate the type-level lists of higher-order effects and first-order effects by taking two distinct type arguments:
+Then, on the monad representing an effectful program, the type-level lists for higher-order effects and first-order effects will be handled separately by taking two type arguments:
 
 ```haskell
 program :: Eff '[Catch Int] '[Throw Int] Int
 program = catch (throw 42) \a -> pure a
 ```
 
-Here, `Eff` is internally defined using the same `Freer` structure we discussed earlier in Polysemy (details on this will follow).
+Here, `Eff` is internally defined using the same `Freer` structure that was discussed earlier in Polysemy (details on this will be explained later).
 
-Rather than interpreting both kinds of effects together using something like `runError`, we instead split the interpretation into two: one interpreter for first-order effects and another for higher-order effects:
+Instead of interpreting both kinds of effects at once with something like `runError`, we split them into two interpreters: one for first-order effects and one for higher-order effects:
 
 ```haskell
 runThrow :: Eff '[] (Throw e ': ef) a -> Eff '[] ef (Either e a)
 runCatch :: Throw e <| ef => Eff (Catch e ': eh) ef a -> Eff eh ef a
 ```
 
-Note that in `runThrow`, the list of higher-order effects is empty. The key point is that **when interpreting a delimited continuation, the higher-order effects cannot be left in the list**. In `runThrow`, when a `Throw` is thrown, you need to abandon the delimited continuation and perform a global exit.
+Notice that in `runThrow`, the list of higher-order effects is empty. In fact, this allows both `runThrow` and **even `runCatch` to be written**[^2]. This makes it possible to handle higher-order effects.
 
-In fact, this approach enables us to write both `runThrow` and, more importantly, **`runCatch`**[^2]. This is how handling higher-order effects becomes possible.
+As for `runThrow`, at least in the current method we’re discussing, **when interpreting effects that handle delimited continuations, higher-order effects cannot remain in the list**. In `runThrow`, when a `Throw` is invoked, the remaining delimited continuations must be discarded to achieve a global exit.
 
-[^2]: Actually, we need a constraint on `eh` to be `HFunctor` (equivalent to the old `MFunctor` in earlier versions of Polysemy). There's more to explain about this, but I'll leave that for another time.
+[^2]: In fact, the constraint `eh` must satisfy `HFunctor` (which corresponds to the old `MFunctor` in Polysemy). Although there’s much more to explain here, I’ll skip the details for now.
 
 # Essential Structure
 
-The takeaway from this discussion is that **the difficulties with higher-order effects in Polysemy and existing EE libraries stem from treating fundamentally different entities—first-order and higher-order effects—as if they were the same.** This is the main point I want to emphasize in this article.
+The takeaway from this discussion is that **the difficulties with higher-order effects in Polysemy and existing EE libraries stem from treating fundamentally different entities—first-order and higher-order effects, whose structure, nature, and possible operations are inherently different—as if they were the same.** This is the main point I want to emphasize in this article.
 
-By separating first-order and higher-order effects at the type level, we can clearly distinguish between the kinds of operations that are possible in each case. This stricter type-level separation reveals that operations that were thought to be impossible can indeed be written if handled properly.
+By separating both the types and lists of effects into first-order and higher-order categories, it becomes possible to distinguish, at the type level, which operations are valid in which situations. This stricter expression of constraints allows us to realize that operations previously thought to be unfeasible can actually be written, provided certain conditions are met.
 
 This is how Heftia manages both first-order and higher-order effects. As mentioned earlier, there is a restriction that when dealing with delimited continuations, higher-order effects must be fully interpreted and removed from the list.
 
-In my view, this restriction reflects a fundamental mathematical structure that emerges when extending algebraic effects to higher-order effects. I believe this might represent the theoretical limit of such an extension. At least, that’s how I interpret it at the moment. The restriction, I think, serves to maintain the consistency of the semantics.
+In my view, this restriction reflects a fundamental mathematical structure that emerges when extending algebraic effects to higher-order effects. I believe this might represent the theoretical limit of such an extension. One reason I believe this is that, in fact, this restriction can be interpreted as a mechanism to preserve the soundness of the semantics.
 
 Consider the following program, which uses a higher-order effect, `onException`, to safely release resources during an error, along with a first-order effect `throw`:
 
@@ -134,8 +134,6 @@ prog =
     ) `onException` freeResourceOnError
 ```
 
-
-
 Now, suppose `runThrow` could handle higher-order effects still in the list, like this:
 ```haskell
 runThrow' :: Eff eh (Throw e ': ef) a -> Eff eh ef (Either e a)
@@ -146,26 +144,27 @@ If this were possible, the following could happen:
 runThrow' prog :: Eff (OnException ': eh) ef (Either Int ())
 ```
 
-What would happen to `OnException` next? Since `Eff` is internally just `Freer`, there's no longer any trace of the `Throw` inside the list. The `throw 42` has now bypassed `onException` and turned into `Either Int`. At this point, there's no way to determine within `onException` whether an error occurred in the scope. In other words, we can no longer decide whether to call `freeResourceOnError`. If we don’t call it, resources won’t be released on failure; if we do call it, resources will be released twice. Either way, it’s undesirable.
+Now, what happens to `OnException` in this case? Since `Eff` is internally just a `Freer`, there is no information about the `Throw` effect stored anywhere once it has been removed from the list. The `throw 42` bypasses `onException` and becomes an `Either Int`. At this point, there is no way to obtain information about whether an error occurred within the scope of `onException` during its interpretation. In other words, it is impossible to determine whether to call `freeResourceOnError`. If we don't call it, resources won’t be released in case of a failure, but if we do call it, both `freeResourceOnSuccess` and `freeResourceOnError` would run, causing the resource to be freed twice. This is obviously undesirable.
 
-The restriction that higher-order effects cannot remain when handling delimited continuations can be interpreted as a "type-level safeguard" against such unsafe behavior. The type ensures that before handling delimited continuations, all higher-order effects must first be interpreted. This enforces a consistent order and eliminates unpredictable behavior.
+The restriction that higher-order effects must be fully interpreted before handling delimited continuations can be seen as a "type-level guardrail" that prevents unsafe behavior where things jump out of scope unexpectedly. If the types are structured this way, the type system ensures that before interpreting delimited continuations, all higher-order effects must be interpreted first. This order is guaranteed by the type system, allowing us to say goodbye to unpredictable, strange behavior.
 
-Moreover, this discussion leads to the idea that higher-order effects like `Resource` (used for `bracket` or `onException`) and `UnliftIO` compete with effects like `NonDet`, `Throw`, or `State`, which involve delimited continuation operations[^3]. In these cases, effects like `runNonDetByThread`, `runThrowByIO`, or `runStateByIORef` can only be interpreted using IO-monad-based operations. In other words, by following the types, exceptions leaking out of `bracket` become impossible. The types derived from the structure ensure consistency and safety. This suggests that Heftia’s design is quite well-structured and close to the *essential structure* of such effects. At least, that’s my belief.
+This discussion leads to the fact that higher-order effects like `Resource` (used for `bracket` or `onException`) and `UnliftIO` may conflict with effects like `NonDet`, `Throw`, or `State`, which involve delimited continuation operations[^3]. In these cases, interpretations that rely on the IO monad, such as `runNonDetByThread`, `runThrowByIO`, or `runStateByIORef`, become the only feasible solutions. In other words, by following the guidance of the type system, it becomes impossible for exceptions to escape from `bracket`. By adhering to the types derived from the structure, everything remains consistent and safe. This demonstrates how well-designed Heftia’s structure and its restrictions are, and *how close it comes to the essential structure*. At least, that is my belief.
 
-[^3]: This is a common issue with libraries like Effectful, but `Reader`, with its favorable properties, is the only one that can be interpreted without relying on IO.
+[^3]: As is familiar in libraries like Effectful, only Reader, with its favorable properties, can be interpreted without relying on IO and without conflict.
 
 ### Continuation-based Semantics
-By defining interpreters for various first-order and higher-order effects in this way, we naturally arrive at the *continuation-based semantics* mentioned earlier. For more details, refer to the [Getting Started section of the library's README](https://github.com/sayo-hs/heftia?tab=readme-ov-file#getting-started). In short, it achieves the same results as Algebraic Effects and Handlers or [Alexis King's eff](https://github.com/lexi-lambda/eff).
+
+By defining various first-order and higher-order effects and interpreters in this way, the previously mentioned *continuation-based semantics* are naturally realized. For more details, please refer to the [Getting Started section of the library’s README](https://github.com/sayo-hs/heftia?tab=readme-ov-file#getting-started). In short, it achieves results similar to those in Algebraic Effects and Handlers or [Alexis King’s eff](https://github.com/lexi-lambda/eff).
 
 ## The Thought Process and Hefty Algebra
 
-Of course, I didn’t arrive at this idea from scratch. About a year and a half ago, when I was struggling with the design of Heftia’s early version, I came across the following paper:
+Of course, I didn’t arrive at this idea from nothing. About a year and a half ago, when I was struggling with the design of Heftia’s early version, I came across the following paper:
 
 [Casper Bach Poulsen and Cas van der Rest. 2023. Hefty Algebras: Modular Elaboration of Higher-Order Algebraic Effects. Proc. ACM Program. Lang. 7, POPL, Article 62 (January 2023), 31 pages.](https://dl.acm.org/doi/10.1145/3571255)
 
-*It seemed like this paper was offering answers to the very questions I was grappling with.* By examining the Agda definitions in the paper and the Haskell code from the artifact repository, I figured out that `Hefty` is likely defined by the following data structure[^4]:
+*It seemed like something that offered an answer to the questions I was wrestling with.* By playing around with the types while referencing the Agda definitions in the paper and the Haskell code in the artifact repository, I figured out that `Hefty` seems to be defined by the following data structure[^4]:
 
-[^4]: Here’s a gist (in Japanese) of my scattered thoughts at the time: [https://gist.github.com/ymdryo/e8af81d454371c719c289eba1418e573](https://gist.github.com/ymdryo/e8af81d454371c719c289eba1418e573)
+[^4]: Here's a gist (in Japanese) of my scattered thoughts at the time: [https://gist.github.com/ymdryo/e8af81d454371c719c289eba1418e573](https://gist.github.com/ymdryo/e8af81d454371c719c289eba1418e573)
 
 ```haskell
 data Hefty h a =
@@ -173,7 +172,7 @@ data Hefty h a =
     | forall x. Impure (h (Hefty h) x) (x -> Hefty h a)
 ```
 
-It appears to combine a higher-order version of `Coyoneda` called `HCoyoneda`. When broken down:
+It seems that this is composed of something like a higher-order version of `Coyoneda`, called `HCoyoneda`. When broken down, it looks like this:
 
 ```haskell
 type Hefty h = Hefty' (HCoyoneda h)
@@ -187,19 +186,20 @@ data HCoyoneda h f a
     = HCoyoneda (Coyoneda (h f) a)
 ```
 
-Further, `Hefty'` seems to be a higher-order version of `Free`:
+Additionally, `Hefty'` appears to be a higher-order version of `Free`:
+
 ```haskell
 data Hefty' h a = Hefty' ( Free (h (Hefty' h)) a )
 ```
 
 So, `Hefty` is essentially a combination of the higher-order versions of `Free` and `Coyoneda`, or a higher-order Freer.
 
-Hefty Algebra handles higher-order effects on this structure using a mechanism called Elaboration. This is a stronger version of the restriction I mentioned earlier, where all higher-order effects must be interpreted before any first-order effects are. This separates the higher-order effect interpretation stage (called Elaboration) from the first-order effect interpretation stage.
+Furthermore, in Hefty Algebra, a mechanism called Elaboration is used to handle higher-order effects on the Hefty data structure. This is a stronger version of the aforementioned restriction, where all higher-order effects must be interpreted before any first-order effects, regardless of whether or not delimited continuation operations are involved. In other words, the interpretation stage for higher-order effects (referred to as Elaboration) and the interpretation stage for first-order effects are completely separated.
 
-It seemed like this could work, so I redesigned the library based on these ideas. Along the way, I realized that first-order and higher-order effects could coexist to some extent without fully separating the interpretation stages, simply by splitting the effect lists. The idea of separating the lists of first-order and higher-order effects was inspired by the Elaboration approach.
+It seemed like it might work, so I redesigned the library based on these ideas. During the process, I realized that it isn’t always necessary to fully separate the interpretation stages; by simply separating the effect lists, first-order and higher-order effects can coexist to a certain degree. So, this idea of separating the lists of first-order and higher-order effects was inspired by the Elaboration method.
 
-Some time later, I found that Polysemy had already been on the verge of this same discovery.
-Let’s revisit the definition of the higher-order version of Freer:
+And then, some time later, I came across that article on Polysemy.
+Let me go over the higher-order version of `Freer` again:
 
 > ```haskell
 > newtype Freer f a = Freer
@@ -211,7 +211,7 @@ Let’s revisit the definition of the higher-order version of Freer:
 >   }
 > ```
 
-Let’s tweak this a bit. To avoid confusion with the traditional first-order `Freer`, let’s call this higher-order version `FreerH`. Rename `f` to `h`, and rewrite `FreerH` using the first-order `Freer`, which we can encode as `Free (Coyoneda f)`[^5].
+Now let’s transform this a bit. To avoid confusion with the traditional first-order `Freer`, let’s call this higher-order version `FreerH`. We’ll rename `f` to `h`, and rewrite `FreerH` using the traditional first-order `Freer`, which we will now refer to as `Freer1`. Here, `Freer1` can be equivalently encoded as `Free (Coyoneda f)` [^5].
 
 ```haskell
 data FreerH h a = FreerH (Freer1 (h (FreerH h)) a)
@@ -223,38 +223,39 @@ data Freer1 f a
 
 [^5]: [https://stackoverflow.com/questions/71562355/did-this-construction-of-freefreer-monad-works](https://stackoverflow.com/questions/71562355/did-this-construction-of-freefreer-monad-works)
 
-Replace the encoding of `Freer1` with `Free (Coyoneda f)` and substitute it into `FreerH`:
+If we replace the encoding of `Freer1` with `Free (Coyoneda f)` and substitute it into `FreerH`, we get:
+
 ```haskell
 data FreerH h a
     = FreerH (Free (Coyoneda (h (FreerH h))) a)
     = FreerH (Free (HCoyoneda h (FreerH h)) a)
 ```
 
-When you break down `HCoyoneda`:
+Breaking down `HCoyoneda` gives us:
 
 ```haskell
 type FreerH h = FreerH' (HCoyoneda h)
 data FreerH' h a = FreerH' ( Free (h (FreerH' h)) a )
 ```
 
-Wait a minute... Isn’t this the same as...?
+Wait, isn't this the same as...?
 
 ```haskell
 type Hefty h = Hefty' (HCoyoneda h)
 data Hefty' h a = Hefty' ( Free (h (Hefty' h)) a )
 ```
 
-It’s the same thing.
+They’re identical.
 
-So, this `Hefty` equivalent had already appeared in Polysemy as early as 2019. In a way, Polysemy had gotten very close. What was needed to fully unlock the potential of this higher-order version of Freer was the introduction of the elaboration framework, which separates the interpretation of first-order and higher-order effects.
+So, this `Hefty` equivalent had already appeared in Polysemy by 2019. In that sense, Polysemy had gotten very close. The framework necessary to fully unlock the potential of this higher-order version of `Freer` was the introduction of the Elaboration method, which separates the interpretation of first-order and higher-order effects.
 
-Thus, while it has undergone some transformation from the original paper, Heftia is fundamentally based on the ideas from that paper.
+Thus, although Heftia has evolved somewhat from the original paper, it is fundamentally based on the ideas presented in that paper.
 
-# Looking Ahead
+## Looking Ahead
 
-This library is not merely an attempt to replicate [Alexis King's eff](https://github.com/lexi-lambda/eff) ahead of time.
+This library is not merely an attempt to preempt [Alexis King’s eff](https://github.com/lexi-lambda/eff).
 
-If we were to categorize Haskell's effect system libraries, they would likely be divided into two groups: non-IO-based and IO-based.
+If we were to categorize Haskell’s effect system libraries, they would likely be divided into two groups: non-IO-based and IO-based.
 
 * Non-IO-based (pure):
     * [mtl](https://hackage.haskell.org/package/mtl)
@@ -266,6 +267,6 @@ If we were to categorize Haskell's effect system libraries, they would likely be
     * [eff](https://github.com/lexi-lambda/eff)
     * [cleff](https://hackage.haskell.org/package/cleff)
 
-This library falls into the non-IO-based, pure side. In other words, effects can be handled without relying on the IO monad. It can use monads other than IO as the base monad, and even handle effectful programs in an applicative context rather than a monadic one.
+This library falls into the non-IO-based, pure category. In other words, it allows effects to be handled without relying on the IO monad. It can use monads other than IO as the base monad, and even handle effectful programs in an applicative context, rather than a monadic one.
 
-The reason for emphasizing purity is that it aligns with the Safe Haskell language extension. **If we can handle effects without relying on the IO monad and avoid using any internal `unsafe` functions, we can combine this with Safe Haskell to use the effect system as a static security feature for managing permissions and access control.** Although Safe Haskell may not work with the library yet, I aim to support it in the future. Purity is the groundwork for this goal.
+The reason for emphasizing purity is to align with the Safe Haskell language extension. **If we can handle effects without relying on the IO monad and avoid using any internal `unsafe` functions, we can combine this with Safe Haskell to use the effect system as a static security feature for managing permissions and access control.** Currently, the library may not yet work with Safe Haskell, but I plan to support it in the future. This emphasis on purity is a foundation for that goal.
