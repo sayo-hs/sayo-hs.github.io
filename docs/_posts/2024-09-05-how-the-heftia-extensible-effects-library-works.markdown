@@ -120,7 +120,7 @@ By separating both the types and lists of effects into first-order and higher-or
 
 This is how Heftia manages both first-order and higher-order effects. As mentioned earlier, there is a restriction that when dealing with delimited continuations, higher-order effects must be fully interpreted and removed from the list.
 
-In my view, this restriction reflects a fundamental mathematical structure that emerges when extending algebraic effects to higher-order effects. I believe this might represent the theoretical limit of such an extension. One reason I believe this is that, in fact, this restriction can be interpreted as a mechanism to preserve the soundness of the semantics.
+In my view, this restriction inherently emerges from the mathematical structure when algebraic effects are extended to higher-order effects, and I currently believe that it might represent the theoretical limit of such an extension at this point in time. The reason I think so is that this restriction can be interpreted as a mechanism for protecting the soundness of the semantics.
 
 Consider the following program, which uses a higher-order effect, `onException`, to safely release resources during an error, along with a first-order effect `throw`:
 
@@ -135,6 +135,7 @@ prog =
 ```
 
 Now, suppose `runThrow` could handle higher-order effects still in the list, like this:
+
 ```haskell
 runThrow' :: Eff eh (Throw e ': ef) a -> Eff eh ef (Either e a)
 ```
