@@ -5,11 +5,6 @@ date:   2024-09-05 03:33:30 +0900
 categories: jekyll update
 ---
 
-This article is a translation of the original Japanese article:
-<a href="https://zenn.dev/lanexpr/articles/dd8110bbdd707c">Higher-Order Effects Done Right: Heftia Extensible Effectsライブラリの仕組み</a>
-
----
-
 # Introduction
 
 This article is intended for the Haskell Extensible Effects (EE) community, focusing on "higher-order effects" and "delimited continuations." It explains the workings of the EE library "Heftia" that I implemented. I hope this article reaches the EE community and generates some buzz.
@@ -271,3 +266,8 @@ If we were to categorize Haskell’s effect system libraries, they would likely 
 This library falls into the non-IO-based, pure category. In other words, it allows effects to be handled without relying on the IO monad. It can use monads other than IO as the base monad, and even handle effectful programs in an applicative context, rather than a monadic one.
 
 The reason for emphasizing purity is to align with the Safe Haskell language extension. **If we can handle effects without relying on the IO monad and avoid using any internal `unsafe` functions, we can combine this with Safe Haskell to use the effect system as a static security feature for managing permissions and access control.** Currently, the library may not yet work with Safe Haskell, but I plan to support it in the future. This emphasis on purity is a foundation for that goal.
+
+---
+
+This article is a translation of the original Japanese article:
+<a href="https://zenn.dev/lanexpr/articles/dd8110bbdd707c">Higher-Order Effects Done Right: Heftia Extensible Effectsライブラリの仕組み</a>
