@@ -75,10 +75,10 @@ So, how should we write `runError`?
 
 ## Separating First-order and Higher-order Effects
 
-Here’s a novel idea:
-**Separate first-order and higher-order effects as distinct types.**
+Here, I introduce a new idea:
+**Separate first-order effects from higher-order effects as distinct types.**
 
-For example, the `Error` effect can be split into two data types like this:
+For example, the `Error` effect can be decomposed and defined into the following two data types:
 
 ```haskell
 data Throw e (a :: Type) where
@@ -90,25 +90,27 @@ data Catch e f (a :: Type) where
     Catch :: f a -> (e -> f a) -> Catch e f a
 ```
 
-On the monad representing an effectful program, we handle higher-order and first-order effects separately by taking two type arguments for the type-level lists:
+Then, on the monad that represents an effectful program, we separate the type-level lists of higher-order effects and first-order effects by taking two distinct type arguments:
 
 ```haskell
 program :: Eff '[Catch Int] '[Throw Int] Int
 program = catch (throw 42) \a -> pure a
 ```
 
-Internally, `Eff` will be defined using the same `Freer` structure from Polysemy. More on this later.
+Here, `Eff` is internally defined using the same `Freer` structure we discussed earlier in Polysemy (details on this will follow).
 
-Rather than interpreting everything in one go like `runError`, we split the interpreter into two, one for first-order effects and one for higher-order effects:
+Rather than interpreting both kinds of effects together using something like `runError`, we instead split the interpretation into two: one interpreter for first-order effects and another for higher-order effects:
 
 ```haskell
 runThrow :: Eff '[] (Throw e ': ef) a -> Eff '[] ef (Either e a)
 runCatch :: Throw e <| ef => Eff (Catch e ': eh) ef a -> Eff eh ef a
 ```
 
-Notice that in `runThrow`, the list of higher-order effects is empty. In this system, **if you want to interpret delimited continuations, the higher-order effects must be fully interpreted and removed from the list**. In fact, this approach makes **both `runThrow` and `runCatch` possible**[^2], which allows handling higher-order effects.
+Note that in `runThrow`, the list of higher-order effects is empty. The key point is that **when interpreting a delimited continuation, the higher-order effects cannot be left in the list**. In `runThrow`, when a `Throw` is thrown, you need to abandon the delimited continuation and perform a global exit.
 
-[^2]: The constraint `eh` must satisfy `HFunctor` (equivalent to the old `MFunctor` in Polysemy). While there’s more to explain, I’ll skip it for now.
+In fact, this approach enables us to write both `runThrow` and, more importantly, **`runCatch`**[^2]. This is how handling higher-order effects becomes possible.
+
+[^2]: Actually, we need a constraint on `eh` to be `HFunctor` (equivalent to the old `MFunctor` in earlier versions of Polysemy). There's more to explain about this, but I'll leave that for another time.
 
 # Essential Structure
 
