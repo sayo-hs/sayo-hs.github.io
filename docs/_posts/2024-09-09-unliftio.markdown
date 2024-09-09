@@ -36,11 +36,11 @@ runThrowIO ::
 
 [^1]: As for the return value here, by adding the `UnliftIO <<| eh` constraint, it can return `Either e a` instead of just `a`. It’s simply that `UnliftIO.Exception.try` isn’t being used.
 
-In short, Heftia separates the world into IO-based and continuation-based realms, and they can’t typically be mixed. This is a type-level safeguard to prevent *weird things* from happening, and the only breakthrough is the `Shift_` effect, which pushes the limits of what can be achieved while adhering to the restrictions[^2].
+In short, Heftia separates the world into UnliftIO-based and continuation-based realms, and they can’t typically be mixed. This is a type-level safeguard to prevent *weird things* from happening, and the only breakthrough is the `Shift_` effect, which pushes the limits of what can be achieved while adhering to the restrictions[^2].
 
 [^2]: I haven’t tried it yet, but it’s likely possible to write continuation-based handlers like `runThrow` that can be used alongside higher-order effects by using `Shift_` internally. In that case, the behavior when higher-order effects are involved would probably inherit from `Shift_`—meaning the context would be reset at the point where the higher-order effect’s scope ends.
 
-So, because Heftia can handle the IO-based realm, it essentially includes everything that can be achieved by other IO-based libraries. It’s just that they can’t be mixed with the continuation-based realm.
+So, because Heftia can handle the UnliftIO-based realm, it essentially includes everything that can be achieved by other IO-based libraries. It’s just that they can’t be mixed with the continuation-based realm.
 Heftia gradually expands the feasible area within safe boundaries, maximizing user freedom while preventing *weird things* from happening.
 
 ---
