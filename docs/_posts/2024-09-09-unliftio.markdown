@@ -45,6 +45,27 @@ Heftia gradually expands the feasible area within safe boundaries, maximizing us
 
 ---
 
+So, would it be a practical problem if they are incompatible? If you want to use `fork` and `bracket`, does that mean you can no longer use `runState` in that Haskell project and have to use `runStateIORef` instead?
+
+No, that's not the case. Whether it becomes a practical problem depends on writing some practical programs, but at least when I personally created a small automation program using Heftia, it was not an issue. Here’s how to handle it.
+
+First, perform effect handling involving higher-order effects and continuation operations. Once that handling is complete and continuation operations are no longer needed, you can handle `UnliftIO` and other higher-order and first-order effects last. Essentially, this means separating the stage of handling continuation operations from the stage of handling IO dependencies with `UnliftIO`:
+
+```haskell
+main :: IO ()
+main = runApp yourApplication
+
+runApp :: Eff '[...] '[...] ~> IO
+runApp = runUnliftIOStage . runContinuationStage
+
+runUnliftIOStage :: Eff '[... , UnliftIO] '[... , IO] ~> IO
+runContinuationStage :: Eff '[...] '[...] ~> Eff '[... , UnliftIO] '[... , IO]
+```
+
+The degree of inconvenience due to the lack of modularity is unknown. However, in most practical cases, this approach should work well.
+
+---
+
 This post addresses the following question in Reddit: [https://www.reddit.com/r/haskell/comments/1fbvmo8/comment/lm92t03/](https://www.reddit.com/r/haskell/comments/1fbvmo8/comment/lm92t03/)
 
 > Yeah. Have a look at [https://discourse.haskell.org/t/the-issues-with-effect-systems/5630/19?u=arybczak](https://discourse.haskell.org/t/the-issues-with-effect-systems/5630/19?u=arybczak), in particular:
