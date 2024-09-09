@@ -62,6 +62,7 @@ runUnliftIOStage :: Eff '[... , UnliftIO] '[... , IO] ~> IO
 runContinuationStage :: Eff '[...] '[...] ~> Eff '[... , UnliftIO] '[... , IO]
 ```
 
+In this example, the stages are completely separated into two functions, but in reality, they can be mixed together more.
 The degree of inconvenience due to the lack of modularity is unknown. However, in most practical cases, this approach should work well.
 
 ---
