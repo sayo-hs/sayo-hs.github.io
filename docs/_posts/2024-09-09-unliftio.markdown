@@ -1,0 +1,57 @@
+---
+layout: post
+title:  "Is it possible to reconcile UnliftIO and continuations?"
+date:   2024-09-09 19:36:30 +0900
+categories: heftia
+---
+
+First, there is a higher-order effect for `UnliftIO` that can be used: [Data.Effect.Unlift.UnliftIO](https://hackage.haskell.org/package/data-effects-0.1.2.0/docs/Data-Effect-Unlift.html#t:UnliftIO). When the UnliftIO higher-order effect is in the effect list, users can use `withRunInIO`.
+
+On the other hand, handlers involving continuations, such as `runNonDet`, `runThrow`, or `runState`, require that the list of higher-order effects be empty when they’re used: [Control.Effect.Interpreter.Heftia.Except.runThrow](https://hackage.haskell.org/package/heftia-effects-0.3.1.0/docs/Control-Effect-Interpreter-Heftia-Except.html#v:runThrow)
+
+```haskell
+runThrow :: Eff '[] (Throw e ': r) a -> Eff '[] r (Either e a)
+```
+
+(I’ve simplified the type signatures for clarity.)
+
+This is the limitation. The UnliftIO higher-order effect remains in the list until the very end, when `runUnliftIO` is executed, which prevents it from being used alongside continuation-handling effects: [Control.Effect.Interpreter.Heftia.Unlift.UnliftIO](https://hackage.haskell.org/package/heftia-effects-0.3.1.0/docs/Control-Effect-Interpreter-Heftia-Unlift.html#v:runUnliftIO)
+
+```haskell
+runUnliftIO :: Eff '[UnliftIO] '[IO] a -> IO a
+```
+
+The only exception is the [`Shift_`](https://hackage.haskell.org/package/heftia-effects-0.3.1.0/docs/Control-Effect-Interpreter-Heftia-ShiftReset.html#v:runShift_) effect. This is the limit of what Heftia (and probably higher-order effects in general) can do to relax these restrictions and allow higher-order effects and delimited continuations to be used together.
+
+It functions even when higher-order effects remain in the list, and when used alongside higher-order effects like `withRunInIO`, it behaves such that *reset* (in the sense of delimited continuations, *shift/reset*) is applied in places where it is 'principally impossible to escape the scope.' This is quite advanced and tricky, but it behaves logically, so advanced users should be able to use it in meaningful ways: [Example of `Shift_` in use](https://github.com/sayo-hs/heftia/blob/1a2774adabe81a979dc6f560b3490d4712740a5f/heftia-effects/Example/Continuation2/Main.hs#L86-L105).
+
+Handlers that don’t require continuations, like `runReader`, or those using `runStateIORef`, `runThrowIO`, or `runNonDetForkIO`, which rely on the IO monad internally, can be used even if higher-order effects remain in the list. These handlers can be used without issue[^1]:
+[Control.Effect.Interpreter.Heftia.Except.runThrowIO](https://hackage.haskell.org/package/heftia-effects-0.3.1.0/docs/Control-Effect-Interpreter-Heftia-Except.html#v:runThrowIO)
+
+```haskell
+runThrowIO ::
+    (IO <| r, ForallHFunctor eh) =>
+    Eff eh (Throw s ': r) a -> Eff eh r a
+```
+
+[^1]: As for the return value here, by adding the `UnliftIO <<| eh` constraint, it can return `Either e a` instead of just `a`. It’s simply that `UnliftIO.Exception.try` isn’t being used.
+
+In short, Heftia separates the world into IO-based and continuation-based realms, and they can’t typically be mixed. This is a type-level safeguard to prevent *weird things* from happening, and the only breakthrough is the `Shift_` effect, which pushes the limits of what can be achieved while adhering to the restrictions[^2].
+
+[^2]: I haven’t tried it yet, but it’s likely possible to write continuation-based handlers like `runThrow` that can be used alongside higher-order effects by using `Shift_` internally. In that case, the behavior when higher-order effects are involved would probably inherit from `Shift_`—meaning the context would be reset at the point where the higher-order effect’s scope ends.
+
+So, because Heftia can handle the IO-based realm, it essentially includes everything that can be achieved by other IO-based libraries. It’s just that they can’t be mixed with the continuation-based realm.
+Heftia gradually expands the feasible area within safe boundaries, maximizing user freedom while preventing *weird things* from happening.
+
+---
+
+This post addresses the following question in Reddit: [https://www.reddit.com/r/haskell/comments/1fbvmo8/comment/lm92t03/](https://www.reddit.com/r/haskell/comments/1fbvmo8/comment/lm92t03/)
+
+> Yeah. Have a look at [https://discourse.haskell.org/t/the-issues-with-effect-systems/5630/19?u=arybczak](https://discourse.haskell.org/t/the-issues-with-effect-systems/5630/19?u=arybczak), in particular:
+>
+> > Why we can’t support both nondeterminism and MonadUnliftIO? It is perhaps less well known that many IO functions accessible via MonadUnliftIO, mainly those that use fork and bracket, only work when the control flow is deterministic. This has not been a problem since the beginning since Haskell was a deterministic language - but not now! Future effect system users will probably face a choice between nondeterminism-capable libraries and MonadUnliftIO-capable libraries and they will need to choose based on their specific needs.
+>
+> Your library claims to support both, which, according to my knowledge, can't work.
+> What happens when you combine `NonDet` (or `Throw` / `Catch`) with unlifted `bracket` or `forkIO`?
+
+---
