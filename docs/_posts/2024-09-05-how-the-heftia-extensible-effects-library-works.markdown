@@ -262,6 +262,7 @@ If we were to categorize Haskell’s effect system libraries, they would likely 
     * [effectful](https://hackage.haskell.org/package/effectful)
     * [eff](https://github.com/lexi-lambda/eff)
     * [cleff](https://hackage.haskell.org/package/cleff)
+    * [Bluefin](https://hackage.haskell.org/package/bluefin)
 
 This library falls into the non-IO-based, pure category. In other words, it allows effects to be handled without relying on the IO monad. It can use monads other than IO as the base monad, and even handle effectful programs in an applicative context, rather than a monadic one.
 
