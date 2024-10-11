@@ -68,7 +68,7 @@ runContinuationStage :: Eff '[...] '[...] ~> Eff '[... , UnliftIO] '[... , IO]
 In this example, the stages are completely separated into two functions, but in reality, they can be mixed together more.
 The degree of inconvenience due to the lack of modularity is unknown. However, in most practical cases, this approach should work well.
 
-Here is a code example based on this method: <https://github.com/sayo-hs/heftia/blob/f58dd05be0a84cc8d1c14cbb24a62523f69e2996/heftia-effects/Example/UnliftIO/Main.hs#L28-L75>
+Here is a code example based on this method: <https://github.com/sayo-hs/heftia/blob/v0.5.0/heftia-effects/Example/UnliftIO/Main.hs>
 
 ---
 
